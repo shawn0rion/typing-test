@@ -18,43 +18,77 @@ const quotes = [
 //    display as i type
 //    wpm when finished
 //
+let quote = "";
 function newQuote() {
-  return quotes[Math.floor(Math.random() * quotes.length)];
+  quote = quotes[Math.floor(Math.random() * quotes.length)];
 }
-let quote = newQuote();
 
-const btn = document.getElementById("start");
 const clock = document.getElementById("clock");
 const textbox = document.getElementById("textbox");
-const quoteDisplay = document.getElementById("quote-display");
-quoteDisplay.innerHTML = quote;
+const mistakes = document.getElementById("mistakes");
+const acc = document.getElementById("acc");
+const wpm = document.getElementById("wpm");
+const results = document.querySelector(".footer");
+const quoteDiv = document.getElementById("quote");
+newQuote();
+let displayQuote = createQuoteDisplay();
+quoteDiv.appendChild(displayQuote);
 
-btn.addEventListener("click", () => {
-  // no repeats during typing
-  if (clock.innerHTML !== "0") {
+textbox.addEventListener("keydown", (e) => {
+  myRegex = /^[a-zA-Z\d\s,.!?;:'"-]{0,1}$/;
+  if (e.key !== "Backspace" && !myRegex.test(e.key)) {
     return;
   }
-  // unfocus btn so spacebar works
-  btn.blur();
-  // reset textbox when btn is clicked
-  textbox.innerHTML = "";
-
-  timer();
-  document.addEventListener("keydown", textInput);
+  // start
+  if (clock.innerHTML === "0") {
+    results.classList.remove("show");
+    timer();
+  }
+  checkMistakes(e.key);
 });
 
-function textInput(e) {
-  const char = e.key;
+function createQuoteDisplay() {
+  const p = document.createElement("p");
+
+  const letters = quote.split("");
+  letters.forEach((letter) => {
+    const span = document.createElement("span");
+    span.textContent = letter;
+    p.appendChild(span);
+  });
+  return p;
+}
+
+function checkMistakes(char) {
+  // const thisQuoteChar = quote.split("")[textbox.value.length];
+  const idx = textbox.value.length;
+  const arr = [...displayQuote.childNodes];
+  // remove color
   if (char === "Backspace") {
-    textbox.innerHTML = textbox.innerHTML.slice(0, -1);
+    displayQuote.childNodes[idx - 1].classList = "";
+    return;
   }
-  myRegex = /^[a-zA-Z\d\s,.!?;:'"-]{0,1}$/;
-  if (myRegex.test(char)) {
-    textbox.innerHTML += char;
+  // fail
+  if (char !== arr[idx].textContent) {
+    // add mistake
+    mistakes.textContent = parseInt(mistakes.textContent) + 1;
+    // if green, remove green
+    if (displayQuote.childNodes[idx].classList.contains("pass")) {
+      displayQuote.childNodes[idx].classList.remove("pass");
+    }
+    // add red
+    displayQuote.childNodes[idx].classList.add("fail");
+  } else {
+    if (displayQuote.childNodes[idx].classList.contains("fail")) {
+      displayQuote.childNodes[idx].classList.remove("fail");
+    }
+    displayQuote.childNodes[idx].classList.add("pass");
   }
 }
+
 function timer() {
   let seconds = 60;
+  clock.innerHTML = seconds;
   let intervalId = setInterval(function () {
     if (seconds > 0) {
       seconds--;
@@ -65,19 +99,36 @@ function timer() {
 }
 
 function checkWinCondition(intervalId) {
-  const text = textbox.innerHTML;
+  const text = textbox.value;
   if (
-    (text === quote && text[text.length - 1] === quote[quote.length - 1]) ||
+    text === quote ||
+    text[text.length - 1] === quote[quote.length - 1] ||
     clock.innerHTML == 0
   ) {
     clearInterval(intervalId);
-    quote = newQuote();
+    trackStats(text);
+    newQuote();
     displayResults();
   }
 }
 
+function trackStats(text) {
+  const letterCount = text.split("").length;
+  const wordCount = text.split(" ").length;
+  const accuracy = ((letterCount - mistakes.textContent) / letterCount) * 100;
+  const wordPerMin = (wordCount / (60 - parseInt(clock.innerHTML))) * 60;
+  acc.textContent = accuracy.toFixed(1) + "%";
+  wpm.textContent = wordPerMin.toFixed(1);
+}
+
 function displayResults() {
+  textbox.value = "";
   clock.innerHTML = 0;
-  quoteDisplay.innerHTML = quote;
-  document.removeEventListener("keydown", textInput);
+  displayQuote = createQuoteDisplay();
+  while (quoteDiv.firstChild) {
+    quoteDiv.removeChild(quoteDiv.lastChild);
+  }
+  quoteDiv.appendChild(displayQuote);
+
+  results.classList.add("show");
 }
